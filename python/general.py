@@ -10,3 +10,18 @@ def timeit(fn):
 
 ###
 dollarizer = lambda x: float(x[1:-1])
+
+def eval_adv(expr):
+# df['X'] = df.X.map(eval_adv)
+    try:
+        eval (expr)
+    except (SyntaxError, NameError, TypeError, ZeroDivisionError):
+        pass
+
+
+def ls_run(): 
+    locals_stored = set(locals())
+    for name in locals_stored:
+        val = eval(name)
+        print(name, "is", type(val), "and is equal to ", val)
+
