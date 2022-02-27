@@ -25,3 +25,10 @@ def ls_run():
         val = eval(name)
         print(name, "is", type(val), "and is equal to ", val)
 
+  
+def xls_reader(file, worksheet=0):
+    import xlrd
+    wosh = xlrd.open_workbook(file, on_demand=True).sheets()[sheet]
+    for irow in range(wosh.nrows):
+        yield map(str, wosh.row_values(irow))
+ 
