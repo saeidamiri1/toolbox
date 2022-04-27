@@ -32,3 +32,8 @@ def xls_reader(file, worksheet=0):
     for irow in range(wosh.nrows):
         yield map(str, wosh.row_values(irow))
  
+def cls():
+ for name in dir():
+    if not name.startswith('_'):
+        del globals()[name]
+        
