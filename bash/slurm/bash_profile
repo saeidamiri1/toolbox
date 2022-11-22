@@ -1,0 +1,69 @@
+# .bash_profile
+
+#Do not load again in in a screen
+if [[ $TERM != *"screen"* ]]; then
+
+# Get the aliases and functions
+if [ -f ~/.bashrc ]; then
+	. ~/.bashrc
+fi
+
+# User specific environment and startup programs
+
+PATH=$PATH:$HOME/.local/bin:$HOME/bin
+
+export PATH
+
+
+#########################
+# ENVIRONMENT VARIABLES #
+#########################
+export ROULEAU=/lustre03/project/6001220/COMMON
+#export PS1="\[\e]0;\u@\h: \w\a\][\u@\h \w]\$ "
+#export PS1="\[\e]0;\u@\h: \w\a\]${debian_chroot:+($debian_chroot)}\[\033[01;33m\]\u@\h\[\033[00m\]:\[\033[01;34m\]\w\[\033[00m\]\$ "
+#export PROMPT_COMMAND='echo -ne "\033]0;${USER}@${HOSTNAME}: ${PWD/$HOME/~}\007"'
+export PATH=$ROULEAU/soft/src.links:$ROULEAU/soft/packages.links:$PATH
+#export PYTHONPATH=$PYTHONPATH
+export PERL5LIB=$ROULEAU/soft/lib/perl/lib/perl5/site_perl/5.22.2:$PERL5LIB
+#cpan
+#o conf mbuildpl_arg "--install_base /lustre03/project/6001220/COMMON/soft/lib/perl"
+#o conf makepl_arg "PREFIX=/lustre03/project/6001220/COMMON/soft/lib/perl"
+#o conf commit
+
+
+#export SLURM_ACCOUNT=rrg-grouleau-ac
+#export SBATCH_ACCOUNT=$SLURM_ACCOUNT
+#export SALLOC_ACCOUNT=$SLURM_ACCOUNT
+#export ACCOUNT=$SLURM_ACCOUNT
+#export RAP_ID=$SLURM_ACCOUNT
+#export RAC_ID=$SLURM_ACCOUNT
+
+#######################################
+# GenPipes/MUGQIC genomes and modules #
+#######################################
+export MUGQIC_INSTALL_HOME=/cvmfs/soft.mugqic/CentOS6
+##module use $MUGQIC_INSTALL_HOME/modulefiles
+##module load mugqic/genpipes/3.1.4 mugqic/python/2.7.14
+#export JOB_MAIL=alexandre.dionne-laporte@mcgill.ca
+export dnaseq_beluga_v37_ini=$ROULEAU/data/genpipes/dnaseq.beluga.ini
+export dnaseq_base_v37_ini=$ROULEAU/data/genpipes/dnaseq.base.ini
+export dnaseq_hg38_ini=$ROULEAU/data/genpipes/hg38.specifics.ini
+export PYTHONPATH=~/soft/packages/Python-3.7.3/lib/python3.7/site-packages:$PYTHONPATH
+##to launch dnaseq : dnaseq.py -c $dnaseq_base_ini $dnaseq_beluga_ini $dnaseq_manual_ini -s 1-29 -r readset.txt -l debug -t mugqic -j slurm > script.sh
+#export rnaseq_beluga_ini=$MUGQIC_INSTALL_HOME/software/genpipes/genpipes-3.1.0/pipelines/rnaseq/rnaseq.graham.ini
+#export rnaseq_base_ini=$MUGQIC_INSTALL_HOME/software/genpipes/genpipes-3.1.0/pipelines/rnaseq/rnaseq.base.ini
+#export rnaseq_manual_ini=$MUGQIC_INSTALL_HOME/software/genpipes/genpipes-3.1.0/pipelines/rnaseq/rnaseq.manual.ini
+##to launch rnaseq : rnaseq.py --config $rnaseq_base_ini $rnaseq_beluga_ini $rnaseq_manual_ini --steps 1-25 --output-dir $PWD --job-scheduler slurm -l debug --design design.txt  --readsets readset.txt  > script.sh; sed 's/sleep 0.5/sleep 5/' script.sh -i
+
+
+fi
+#Here is loaded even if in screen
+. ~/.bash_rouleau
+
+zombie() { while [ 1 ]; do sleep 600; done; }
+
+# genpipes
+export MUGQIC_PIPELINES_HOME=/home/samamiri/runs/samamiri/exome/genpipes
+export MUGQIC_INSTALL_HOME=/home/samamiri/runs/samamiri/exome/mugqic_resources
+module use $MUGQIC_INSTALL_HOME/modulefiles
+module load htslib/1.11

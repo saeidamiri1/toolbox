@@ -1,0 +1,417 @@
+#!/bin/bash
+
+#if [ -f /etc/bashrc ]; then
+#    . /etc/bashrc
+#fi
+
+shopt -s direxpand
+
+umask 002
+
+#if [[ $TERM != *"screen"* ]]; then
+#  export PATH=$SOFT/packages.links:$SOFT/src.links:$PATH
+#fi
+
+# custom variables
+#export PROMPT_COMMAND='echo -ne "\033]0;${USER}@${HOSTNAME}: ${PWD/$HOME/~}\007"'
+export RAP_ID=rrg-grouleau-ac
+export CTB_ID=ctb-grouleau
+#export PS1='\[\e]0;\u@\h (${STY}): \w\a\]${debian_chroot:+($debian_chroot)}\u@\h: \w\$ '
+export PROJECT="/lustre03/project/6004655/$USER"
+export COMMON="/home/$USER/projects/def-grouleau/COMMON"
+export COMMON=/lustre03/project/6001220/COMMON
+export archive='/nearline/rrg-grouleau-ac/COMMUN'
+export PIPELINE_EXOME=$COMMON/soft/src/pipeline_exome.svn
+export PIPELINE_MIPS=$COMMON/soft/src/pipeline_MIPs.svn
+#export pipelineMips=$COMMON/soft/src/pipeline_MIPs.svn
+export link=$PIPELINE_MIPS/data/templates/link.runs.to.accessory_files.sh
+#export link=$pipelineMips/data/templates/link.runs.to.accessory_files.sh 
+export PIPELINE_SV=$COMMON/soft/src/pipeline_SV.git
+export PIPELINE_NIPT=$COMMON/soft/src/pipeline_NIPT.local
+#export pipelineSV=$COMMON/soft/src/pipeline_SV.svn
+export svseg=$PIPELINE_SV/soft/src/segregation.scripts/SV.segregation.svn/segregation.py
+#export svseg=$pipelineSV/soft/src/segregation.scripts/SV.segregation.svn/segregation.py
+export IC=$COMMON/transfer/incoming
+export OG=$COMMON/transfer/outgoing
+export runs=~/runs/$USER
+export runs_completed=$COMMON/runs_results 
+export pipelineBatchCalling=$runs/dan/optimize.variant.freeze.process/pipeline/scripts/	# update this to make it all proper-like
+export SCRATCH="/home/$USER/scratch"
+export pipeline_init_script=$PIPELINE_EXOME/data/templates/init_pipeline.sh
+export library=$PIPELINE_EXOME/data/templates/function.library
+export library_SV=$PIPELINE_SV/data/templates/function.library
+export SV_seg=$PIPELINE_SV/soft/src/segregation.scripts/SV.segregation.git
+export library_MIP=$PIPELINE_MIPS/data/templates/function.library
+export library_MIP2=$PIPELINE_MIPS/soft/src/scripts/function.library.MIPs 
+#export library_SNVs=$cossetteWorkingDir/scripts/function.library.genomeSNVs	# find the proper path and update
+export launch_wrapper=$PROJECT/soft/src/function.library.pipeline_jobs 
+export REF=$PIPELINE_EXOME/data/reference/human_g1k_v37.fasta
+export RAW=$COMMON/pipeline_rawfiles
+export ANA=$COMMON/pipeline_analysis
+export RES=$COMMON/pipeline_results
+export ARCHRES=$archive/analysis/pipeline_results
+export ARCHRAW=$archive/raw
+export gatk=
+#export seg=$ALLOC/pipeline_multisample_analyses/segregation_analyses
+export tt=
+export bedops=~/soft/packages/bedops-2.4.2
+export vcf2annovar=~/soft/src/pipeline_exome.svn/soft/packages/VarAnnot/vcf2annovar.pl 
+export SV=
+#export rouleau_users=$()
+export example_illumina_raw_dir_string="Illumina_HiSeq_Paired-IC-MIP-$(date +%F|tr '-' '_')-IC_Run$run/RAW/"
+export MUGQIC_INSTALL_HOME=/cvmfs/soft.mugqic/CentOS6
+export DEBUG=echo
+export JAVA_HOME=~/soft/packages/jre1.8.0_112
+export R_LIBS_USER=/lustre03/project/6004655/COMMUN/soft/packages/R-3.5.3/lib64/R/library
+export PYTHONPATH=~/soft/packages/Python-3.7.3/lib/python3.7/site-packages:$PYTHONPATH
+
+## >>> conda initialize >>>
+## !! Contents within this block are managed by 'conda init' !!
+#__conda_setup="$($SOFT'/packages/anaconda/bin/conda' 'shell.bash' 'hook' 2> /dev/null)"
+#if [ $? -eq 0 ]; then
+#    eval "$__conda_setup"
+#else
+#    if [ -f "$SOFT/packages/anaconda/etc/profile.d/conda.sh" ]; then
+#        . "$SOFT/packages/anaconda/etc/profile.d/conda.sh"
+#    else
+#        export PATH="$SOFT/packages/anaconda/bin:$PATH"
+#    fi
+#fi
+#unset __conda_setup
+## <<< conda initialize <<<
+
+#custom functions
+#checkJobs() { for i in `qstat -n1 -u $USER | grep $1 | awk 'BEGIN{OFS="_"}{print $1,$12}' | sed 's/\/.*//g'  | grep node`; do job=`echo $i | cut -f1 -d "_"`; node=`echo $i | cut -f2 -d "_"`; scp $node.rqchp.qc.ca:/var/spool/pbs/spool/$job.OU .; done; if [[ $2 == "tail" || $3 == "tail" ]]; then tail -n1 *OU; fi; if [[ $2 == "rm" || $3 == "rm" ]]; then rm *OU; fi; }
+
+killJobs() { read regex debug <<< $@; if [[ $debug ]]; then DEBUG=echo; else DEBUG=""; fi; $DEBUG scancel $(squeue -u $USER|grep $regex|awk '{print $1}'); }
+
+space() {
+  declare -A exp
+  for x in 1:K 2:M 3:G 4:T; do a=`echo $x|awk -F":" '{print $1}'`; b=`echo $x|awk -F":" '{print $2}'`; exp[$b]=$a; done
+  unit=$1
+  if [[ $unit =~ ^[KMGT]$  ]]; then num=${exp[$unit]}; else echo "size argument must be unit of size (one of K, M, G or T)"; return 0; fi
+  echo -e "$(for x in ${@:2:$#}; do lll $x 2>/dev/null; done | awk -v num=$num -v sum=0 -v count=0 -v unit=$unit '{count++; sum+=$5}END{print sum/1024^num " "unit"B in " count " files resembling search parameters" }')"
+}
+
+qd() { squeue -u $USER|grep -P "$1"; }
+
+#qd() {
+#  unset job status depend node remain mem
+#  if [[ $1 == "m" || $1 == "mem" ]]; then m=1; shift; else m=0; fi
+#  grep="$@"; if [[ $# -eq 0 ]]; then grep="^\d+.egeon2"; fi; grep=$(echo $grep|tr ' ' '|'|sed 's/|$//g'); 
+#  for i in $(q|grep -P "($grep)"|awk '{print $1}'); do 
+#    job=$(qstat -f $i | grep Job_Name|awk '{print $NF}')
+#    status=$(qstat -a $i | grep -oP " [RQHCEW] ")
+#    depend=$(qstat -f $i|grep -oP "(before|after)(ok|any).*egeon2"|head -1|sed -e 's/.egeon2//g' -e 's/,/\t/g')
+#    if [[ $status == " R " ]]; then 
+#      node=$(qstat -n1 $i| grep -oP "node-\w\d-\d\d"|sort|uniq)
+#      remain=$(date -ud @"$(qstat -f $i|grep -P "\.walltime"|grep -oP "\d+:\d+:\d+"|awk -F: '{if (NR==1) {used=$3+$2*60+$1*3600} else {ask=$3+$2*60+$1*3600}}END{print ask-used-86400}')" +%j:%T|awk 'BEGIN{FS=OFS=":"}{if ($1==365) $1="00"; print $0}')
+#      if [[ $m -eq 1 ]]; then mem=$(memnode $node|cut -f2-); fi
+#    else
+#      unset node mem remain
+#    fi
+#    echo -e "$i\t$job\t$status\t$node\t$depend\t$remain\t$mem"
+#  done
+#}
+#
+
+#qr() { user=${1:-$USER}; qstat -u $user|grep " R ";  }
+#qq() { user=${1:-$USER}; qstat -u $user|grep " Q ";  }
+#qh() { user=${1:-$USER}; qstat -u $user|grep " H ";  }
+#qc() { user=${1:-$USER}; qstat -u $user|grep " C ";  }
+#qe() { user=${1:-$USER}; qstat -u $user|grep " E ";  }
+
+find_scripts() { dir=$1; if [ ! $1 ]; then dir=$PWD; fi; for i in *function.library* *sh *qsub *txt *smp *pl *py *scala *R *cpp *java *jar; do ll $dir/$i 2>/dev/null; done; }
+find_dirs() { dir=$1; if [ ! $1 ]; then dir=$PWD; fi; find $dir/* $dir/.* -prune -type d|grep -v "\.$"; }
+
+get_samples_rouleau() { if [ ! $1 ]; then echo "function needs at least 1 file as an argument"; exit 42; fi; grep -hoP "([ST]\d{5}|LP\d{7}[\.\-_]DNA_\w\d{2}|[RX]\d{7})" $@|sort|uniq; }
+alias gsr='get_samples_rouleau'
+get_samples_rouleau_duplicates() { if [ ! $1 ]; then echo "function needs at least 1 file as an argument"; exit 42; fi; grep -hoP "([ST]\d{5}|LP\d{7}[\.\-_]DNA_\w\d{2}|[RX]\d{7})" $@|sort|uniq -d; }
+gsrc() { if [ ! $1 ]; then echo "function needs at least 1 file as an argument"; exit 42; fi; get_samples_rouleau $@|wc -l; }
+gsrdc() { if [ ! $1 ]; then echo "function needs at least 1 file as an argument"; exit 42; fi; get_samples_rouleau_duplicates|wc -l; }
+nth() { if [[ $1 -gt 0 ]]; then n=$1; LIS_s=${@:2:$#}; else n=1; LIS_s=$@; fi; echo $LIS_s|cut -d' ' -f$n; }
+
+gsrl() { lists=$@; if [[ ${#lists[@]} -eq 0 ]]; then echo $FUNCNAME requires an input list or filestream; return 42; fi; export samples=$(gsr $lists); export s=$(nth 1 $samples); }
+get_functions() { if [ ! -s $1 ]; then echo "you must enter a valid library file (containing functions) as input"; return; fi; grep "() {" $1|grep -v "#"|sed 's/(.*//g'; }
+rt1() { if [[ $1 ]]; then tail=$1; else tail=1; fi; ls -1rt | tail -$tail; }
+drt1() { if [[ $1 ]]; then tail=$1; else tail=1; fi; ls -1drt *| tail -$tail; }
+
+mergeSortBED() { file=$1; sort -k2,2n $file| sortByRef.pl - ~spiegelm/references/gatk.ref.dict|bedtools merge -i -; }
+sizeBED() { file=$1; sort -k2,2n $file|sortByRef.pl - ~spiegelm/references/gatk.ref.dict|awk '{s+=$3-$2}END{print s}'; }
+
+
+get_samples_from_freeze() {
+if [[ ! $1 ]]; then echo "function $funcname needs at least 1 freeze file (vcf) as input argument"; return; fi
+for vcf in $@; do 
+  if [[ $(file $vcf|grep -c gzip) -eq 1 ]]; then
+    cmd=zcat
+  else
+    cmd=cat
+  fi
+  result=$($cmd $vcf|head -1000|grep "#CHROM"|awk -F"\t" '{for (i=10; i<=NF; i++) printf "\t%s", $i}')
+  echo -e "${vcf}${result}"
+done
+}
+
+header() {
+if [[ ${#@} -eq 2 ]]; then file=$1; sep=$2; elif [[ ${#@} -eq 1 ]]; then file=$1; sep="\t"; else echo "arguments: header [file] [separator (default=tab)]" return 42; fi
+head -n 1 $file|awk -F"$sep" '{for (i=1; i<=NF; i++) print i"\t"$i}'
+}
+
+header_w_examples() { read f s <<< $@; s=${2:-'\t'}; while read col val; do echo -e "$val\t$(head -11 $1|tail -n +2|cut -d"$s" -f$col|tr '\n' ' ')"; done < <(header $f $s); }
+
+BOP_SORT() { $bedops/sort-bed $1; }
+SBR_SORT() { gatk_ref=/home/spiegelm/references/gatk.ref.dict; sort -k2n $1|sortByRef.pl - $gatk_ref; }
+
+clearline() { num=$1; if [[ -z $num ]]; then num=1; fi; for i in $(seq 1 $num); do echo; done; }
+
+max_mem() { offset=$1; if [[ -z $offset ]]; then offset=0; fi; echo $[$(free -g|head -2|tail -1|awk '{print $4+$NF}')-$offset]; }
+
+getSizeQuartiles() {
+ declare -A exp
+  for x in 1:K 2:M 3:G 4:T; do a=`echo $x|awk -F":" '{print $1}'`; b=`echo $x|awk -F":" '{print $2}'`; exp[$b]=$a; done
+  unit=$1; shift
+  if [[ $unit =~ ^[KMGT]$  ]]; then num=${exp[$unit]}; else echo "size argument must be unit of size (one of K, M, G or T)"; return 0; fi
+  files=$@
+  lll $files|awk -v num=$num '{a[NR]=$5/1024^num}END{asort(a); min=1; q1=int(NR/4); q2=int(NR/2); q3=int(3*NR/4); max=NR; print a[min],a[q1],a[q2],a[q3],a[max]}'
+}
+
+freemem () { free -g | head -2 | tail -1 | awk '{print $NF}'; }
+
+sum() { read col sep <<< $@; sep=${sep:-"\\\t"}; awk -F"$sep" -v col=$col '{s+=$col}END{print s}'; }
+
+at() { local regex=${1:-At}; local result=$(screen -list|grep $regex); if [[ $result == "" ]]; then echo "all screens detached"; else echo -e "\t$(echo $result|tr ' ' '\t'|sed 's/\t[0-9]/\n&/g')"; fi; }
+
+args() { for i in $@; do ee "$i\t$(type $i|grep read)"; done; }
+
+linkMips() { . /alloc/grouleau/COMMUN/runs/dan/MIP/scripts/link.runs.to.accessory_files.sh; }
+
+thread() { ps -ejHf|grep $USER|grep $1|grep -v grep; }
+
+kill_switch() {
+  pid=$1; if [[ -z $pid ]]; then echo "function $FUNCNAME requires a process id as first argument"; return 42; fi
+  regex=${2:$pid}
+  while [[ $(ps -p $pid|grep -cv PID) -gt 0 ]]; do if [[ $(freemem) -lt 4 ]]; then kill -9 $(thread $regex|grep -v grep|awk '{print $2}'); echo killed pid $pid because less than 4gb free memory remained; fi; sleep 1; done
+}
+
+kill_all_background() {
+kill -9 $(jl|awk '{print $2}')
+}
+
+#watchdog() {
+#  #warning: this will kill the most memory-intensive process of $USER on the current machine, if the free memory of the node drops below 2gb. use with caution!
+#  while [ 1 ]; do big=$(ps -u $USER -o pid,rss|sort -k2n|tail -1|awk '{print $1}'); echo freemem=$(freemem)gb; echo biggest job: $big; echo uses $(ps -p $big -o rss|tail -1|awk '{print $1/1024^2}')gb; echo command is $(ps -p $big -o cmd|tail -1); if [[ $(freemem) -le 2 ]]; then kill -9 $big; echo "killed $big (cmd=$(ps -p $big -o cmd|tail -1)) $(today) at $(date +%T). now $(freemem) free mem"|tee -a ~/watchdog.log; fi; sleep 3; clear; done
+#}
+
+regex() { 
+  unset SLASH;
+  if [[ $1 == "vim" || $1 == "vi" ]]; then
+      SLASH="\\\\";
+      shift;
+  fi;
+  echo $@ | sed "s/ /$SLASH\|/g"
+}
+
+list() { if [[ ${#@} -eq 1 ]]; then echo $@; else echo {$(echo $@|tr ' ' ',')}; fi; }
+
+list_bare() { if [[ ${#@} -eq 1 ]]; then echo $@; else echo $(echo $@|tr ' ' ','); fi; }
+
+drtvs() { drt {*,.*}$1*|vi -; }
+
+usage_by_columns() { for file in $@; do awk 'BEGIN{FS=OFS="\t"}{if (NR==1) {for (i=1; i<=NF; i++) header[i]=$i;next}; for (i=1; i<=NF; i++) {a[i]=a[i]""$i; s=s""$i}}END{print FILENAME; for (i=1; i<=length(a); i++) printf "%s\t%.1f%\n", header[i],100*length(a[i])/length(s)}' $file; done; }
+
+square() { file=$1; n=${2:-10}; head -n $n $file|cut -f1-$n; }
+
+decToAscii() { echo $@|awk 'BEGIN{for (i=1; i<=256; i++) ascii[i]=sprintf("%c",i)}{for (i=1; i<NF; i++) printf "%s\t" ascii[$i]; printf "%s", ascii[$NF]; printf "\n"}'; }
+asciiToDec() { echo $@|awk '{for (i=1; i<NF; i++) sprintf("%c\t",$i); sprintf("%c\t",$NF); printf "\n"}'; }
+asciiToDec() { echo $@|awk 'BEGIN{for (i=1; i<=256; i++) ascii[sprintf("%c",i)]=i}{for (i=1; i<NF; i++) printf "%s\t", ascii[$i]; printf "%s\n", ascii[$NF]}'; }
+chr() { [ "$1" -lt 256 ] || return 1; printf "\\$(printf '%03o' "$1")"; }
+ord() { LC_CTYPE=C printf '%d' "'$1"; }
+
+findPointer() { file=$1; pid=$2; echo -e "$(lsof -p $pid -o 0|grep $file$|awk '{print $7}')/$(lll $file|awk '{print $5}')"; }
+
+transpose() { awk '{for (i=1; i<=NF; i++) a[i,NR]=$i; max=(max<NF?NF:max)}END{for (i=1; i<=max; i++) {for (j=1; j<=NR; j++) printf "%s%s", a[i,j], (j==NR?RS:FS) }}' $1; }
+
+scheduler_usage() { group=${1:-$RAP_ID}; cat <(ee "user    \tusage_percent") <(sshare -l -P -A ${group}_cpu|awk 'BEGIN{FS="|";OFS="\t"}{if ($2=="") print "GROUP-all",100/$9}') <(sshare -l -a -P --accounts=${group}_cpu|tail -n +2|sort -t'|' -k9g|awk 'BEGIN{FS="|";OFS="\t"}{if ($2=="") next; $2=sprintf("%-8s", $2); if ($9=="inf") {percent=0} else {percent=100/$9}; print $2,percent}'); }
+
+job_priority() { paste <(scheduler_usage $RAP_ID|sed "s/user/$RAP_ID/g" ) <(scheduler_usage $CTB_ID|sed "s/user/$CTB_ID/g" )|awk 'BEGIN{FS=OFS="\t"}{if (NR==1) {print $1,"","",$3} else {printf "%.12s\t%.6f\t\t%.12s\t%.6f\n", $1,$2,$3,$4}}'; }
+
+revcomp() { echo $1|perl -ne 'chomp $_; $str=reverse $_; $str =~ tr/ACGTacgt/TGCAtgca/; print "$str\n"'; }
+
+zombie() { while [ 1 ]; do if [[ $[$RANDOM%100] -lt 5 ]]; then printf "%s..." $(echo -e "it's.in.your.heeeead\nin.your.heeeead\nzoooombie\nzoombeh-eh-eh"|sort -R|head -1); fi; sleep 600; done; }
+
+#mine() { name=briaree4; group=${1:-$RAP_ID}; echo -e "#!/bin/bash\nsleep $[7*24*3600]"|sbatch -N 1 -n 40 --mem=92g --account=$group --time=7-0 -J $name; }
+#
+#mine_forever() { group=${1:-$RAP_ID}; while [[ 1 ]]; do jobid=$(mine $group|awk '{print $NF}'); export jobid; until [[ $(squeue --job $jobid|grep -c $jobid) -eq 0 || $(squeue --job $jobid|grep $jobid|awk '{print $6}') =~ [0123]- ]]; do clear; squeue --job $jobid; sleep 600; done; done }
+
+ready_computeNode() { term=$(echo $TERM); TERM=no; unset PROMPT_COMMAND; . ~/.bashrc; . ~/.bash_profile; export TERM=$term; }
+
+get_queued_genomes() { user=${1:-$USER}; for id in $(squeue -u $user -h|awk '{print $1}'); do scontrol show job $id|grep wgs; done|gsr -; }
+get_running_genomes() { user=${1:-$USER}; for id in $(squeue -t running -u $user -h|awk '{print $1}'); do scontrol show job $id|grep wgs; done|gsr -; }
+
+wait_message() { msg=$@; while [ 1 ]; do echo $msg; sleep 600; done; }
+
+hold() { msg=$@; msg=${msg:-"READY"}; echo $msg && zombie; }
+
+get_rouleau_users() { getent group rrg-grouleau-ac|cut -d: -f4; }
+
+rouleau_scheduler_jobs() { users=$(getent group $RAP_ID|cut -d: -f4); squeue -u $users|awk -v str=$users 'BEGIN{split(str,users,",")}{if (NR==1) next; if ($5=="R") running[$2]++; if ($5=="PD") pending[$2]++; total[$2]++}END{printf "%-8s\tRUNNING\tPENDING\tTOTAL\n", "USER"; for (i in users) {u=users[i]; (u in running) ? r=running[u] : r=0; (u in pending) ? p=pending[u] : p=0 ; (u in total) ? t=total[u] : t=0; printf "%-8s\t%s\t%s\t%s\n", u,r,p,t}}'|(sed -u 1q; sort); }
+
+conda_init() { 
+# >>> conda initialize >>>
+# !! Contents within this block are managed by 'conda init' !!
+__conda_setup="$('/lustre03/project/6001220/COMMON/soft/packages/anaconda/bin/conda' 'shell.bash' 'hook' 2> /dev/null)"
+if [ $? -eq 0 ]; then
+    eval "$__conda_setup"
+else
+    if [ -f "/lustre03/project/6001220/COMMON/soft/packages/anaconda/etc/profile.d/conda.sh" ]; then
+        . "/lustre03/project/6001220/COMMON/soft/packages/anaconda/etc/profile.d/conda.sh"
+    else
+        export PATH="/lustre03/project/6001220/COMMON/soft/packages/anaconda/bin:$PATH"
+    fi
+fi
+unset __conda_setup
+# <<< conda initialize <<<
+}
+
+get_jobs_core-days() {
+    read jobs <<< $@
+    for job in $jobs; do
+        echo -e "$job\t$(seff $job|awk -F: '{if ($1=="Cores per node") c=$2; if ($1=="Job Wall-clock time") t=($2+$3/60+$4/3600)/24; if ($1=="Memory Efficiency") {split($2,a," "); n=a[3]/4; if (n>c) c=n}}END{print c*t}')"
+    done
+}
+
+screen_tree() { pat=$@; tree|awk -v pat="$pat" 'BEGIN{RS="screen";FS="\n"}{if ($1~pat) print}'|grep $pat -A1000; }
+screen_psd() { psd|grep -P "SCREEN.*$" -C1000; }
+thread_tree() { pat=$@; tree|awk -v pat="$pat" 'BEGIN{RS="screen";FS="\n"}{if ($0~pat) print}' | grep --color=auto -P "$pat|-S.*$" -C1000; }
+
+sefff() { jobs=($(echo $@|grep -oP "\d+")); for j in ${jobs[@]}; do seff $j; echo; done; }
+
+sefff() { for j in $@; do if [[ $(basename $j|grep -c pipeline) -eq 1 ]]; then seff $(basename $j|awk -F. '{gsub(/o/,"",$NF); print $NF}'); elif [[ $(basename $j|grep -cP "^slurm-\d+.out$") -eq 1 ]]; then seff $(basename $j|grep -oP "\d+"); else echo "skipping file $j (filename is not *pipeline* nor slurm-[numbers].out)"; fi; echo; done; }
+
+grepf() { echo $@|tr ' ' '\n'; }
+
+setup_incoming_raw() { read type tech centre kit run <<< $@; if [[ -z $type || -z $tech || -z $centre || -z $kit || -z $run ]]; then echo "missing args (type (MIP/exome), technology (e.g. HiSeq, NovaSeq), centre (e.g. IC, MG), kit (e.g. SS_V7, MIP), run (e.g. 1374, 1912UNHS-0048))"; return 1; fi; [[ ${tech,,} == "hiseq" ]] && tech=HiSeq; [[ ${tech,,} == "novaseq" ]] && tech=NovaSeq; if [[ ${type,,} == "exome" ]]; then type=Exome; type_kit=${type}_${kit}; elif [[ ${type,,} == "mip" ]]; then type=MIP; type_kit=MIP; fi; raw_dir_string=Illumina_${tech}_Paired-${centre}-${type_kit}-$(date +%F|tr '-' '_')-${centre}_Run${run}/RAW; export raw_dir_string; }
+
+beluga_watchdog() { delay=${1:-21600}; threshold=$2; while [ 1 ]; do clear; date; ~/soft/src/rouleau-scripts.local/beluga.watchdog.sh $threshold; sleep $delay; done; }
+
+getUserThreads() { user=${1:-$USER}; ps -eo nlwp,user,cmd|grep $user|awk '{s+=$1}END{print s}'; }
+
+firstnlast() { read infile n <<< $@; n=${n:-1}; awk -v n=$n '{a[NR]=$0}END{for (i=1; i<=n; i++) printf "%s\t", a[i]; printf "\n"; for (i=(NR-n+1); i<=NR; i++) printf "%s\t", a[i]; printf "\n"}' $infile|sed 's/\t$//g'; }
+
+average() { read infile col <<< $@; col=${col:-0}; awk -v col=$col '{s+=$col}END{print s/NR}' $infile; }
+
+average_and_stdev() { read infile col <<< $@; col=${col:-0}; awk -v col=$col '{s+=$col; ssq+=($col)^2}END{print s/NR,sqrt(ssq/NR-(s/NR)^2)}' $infile; }
+
+summary_stats() { read infile col <<< $@; col=${col:-0}; awk -v col=$col '{s+=$col; ssq+=($col)^2; a[NR]=$col}END{asort(a); printf "Mean\t%s\nStDev\t%s\nCV\t%s\nMin\t%s\nQ1\t%s\nQ2\t%s\nQ3\t%s\nMax\t%s\n", s/NR,sqrt(ssq/NR-(s/NR)^2),sqrt(ssq/NR-(s/NR)^2)/(s/NR),a[1],a[int(NR/4)],a[int(NR/2)],a[int(3*NR/4)],a[NR]}' $infile; }
+
+#median() { read infile n <<< $@; n=${n:-0}}; awk -v n=$n '{a[NR]=$n}END{asort(a); print a[int(NR/2)]}'; }
+
+percentile() { read integer infile col <<< $@; col=${col:-0}; awk -v float=$(echo $integer/100|bc -l) -v col=$col '{a[NR]=$col}END{asort(a); print a[int(NR*float)]}' $infile; }
+
+median() { read infile col <<< $@; infile=${infile:--}; col=${col:-0}; percentile 50 $infile $col; }
+
+linearRegression() { 
+    file=$1;
+    sep=${2:-'\t'};
+    awk -v sep="$sep" 'BEGIN { FS=OFS=sep }
+NF == 2 { x_sum += $1
+          y_sum += $2
+          xy_sum += $1*$2
+          x2_sum += $1*$1
+          num += 1
+          x[NR] = $1
+          y[NR] = $2
+        }
+END { mean_x = x_sum / num
+      mean_y = y_sum / num
+      mean_xy = xy_sum / num
+      mean_x2 = x2_sum / num
+      slope = (mean_xy - (mean_x*mean_y)) / (mean_x2 - (mean_x*mean_x))
+      inter = mean_y - slope * mean_x
+      for (i = num; i > 0; i--) {
+          ss_total += (y[i] - mean_y)**2
+          ss_residual += (y[i] - (slope * x[i] + inter))**2
+      }
+      r2 = 1 - (ss_residual / ss_total)
+      printf("Slope      :  %g\n", slope)
+      printf("Intercept  :  %g\n", inter)
+      printf("R-Squared  :  %g\n", r2)
+    }' $file
+}
+
+getJsonVal() { 
+    python -c "import json,sys;sys.stdout.write(json.dumps(json.load(sys.stdin)$1))"
+}
+
+# aliases
+alias reload='. ~/.profile'
+alias pr='vi ~/.profile'
+alias rc='vi ~/.bashrc'
+alias bp='vi ~/.bash_profile'
+alias ll='ls -lh --time-style=long-iso'
+alias lll='ls -l --time-style=long-iso'
+alias lld='ll -d'
+alias rt='ll -rt'
+alias drt='ll -drt'
+alias drs='ll -drS'
+alias rtl='rt|less'
+alias drtl='drt .* *|less'
+alias rtv='rt|vim -'
+alias drtv='drt .* *|vi -'
+alias llL='ll|less'
+alias fl='find|less'
+alias ff='find -type f'
+alias fd='find -type d'
+alias .l='drt .*|less'
+alias .v='drt .*|vi -'
+alias ee='echo -e'
+alias t='top -cu spiegelm'
+alias la='t -b -n1 | grep -oP "(load average:.*)|^(Mem|Swap).*" | grep -v \*'
+alias d='dir=$PWD'
+alias psd='ps -ejHf|grep spiegelm'
+alias psdv='psd|vi -'
+alias ic=''
+alias slsr='screen -ls'
+alias sls='while read name status; do ee "$name\t$status\t$(screen -S $name -Q windows)"; done < <(slsr|grep -P "^\s"|sort -t. -k2)'
+alias sr='screen -r'
+alias sS='screen -S'
+alias sk='screen kill'
+alias dfh=''
+alias tt=''
+alias today='date +%F'
+alias now='date +%H:%M'
+alias sec='date +%s'
+alias dates='date +%s'
+alias datef='date +%F'
+alias dateh='date +%H:%M'
+alias graham='ssh spiegelm@graham.computecanada.ca'
+alias beluga='ssh spiegelm@beluga.calculcanada.ca'
+alias archive=''
+alias tree='pstree -apnuU $USER'
+alias jl='jobs -l'
+alias dush='du -sh *'
+#alias gsr='get_samples_rouleau'
+alias gsrd='get_samples_rouleau_duplicates'
+alias gsf='get_samples_from_freeze'
+alias diffy='diff -y --suppress-common-lines'
+alias lesss='less -S'
+alias q='squeue -u $USER'
+alias ql='q|less'
+alias qr='q -t running'
+alias qp='q -t pending'
+alias qrl='qr|less'
+alias qf='scontrol show job'
+alias path="echo $PATH|tr ':' '\n'"
+alias archive='rsync -vv --no-g --no-p --chown=$USER:$CTB_ID --progress --ignore-existing'
+alias beluga11='ssh beluga11'
+alias commanderize='sed "s/ -\+/\n\t&/g"'
+alias basenamerize="awk -F/ '{print \$NF}'"
+alias dirnamerize="awk 'BEGIN{FS=OFS=\"/\"}NF{NF-=1};1'"
+alias scripterize='sed "1i #! /bin/bash"'
+alias mysqlerize="xargs printf \"'%s',\"|sed 's/,$//g'"
+alias first='nth 1'
+alias suc='sort|uniq -c'
+alias sucn='suc|sort -n'
+alias fdb='find_dirs|basenamerize'
+alias iap='2>&3 iap'
