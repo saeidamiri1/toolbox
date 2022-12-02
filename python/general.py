@@ -37,3 +37,17 @@ def cls():
     if not name.startswith('_'):
         del globals()[name]
         
+
+##
+# Download zip file 
+import os.path
+from os import path
+import zipfile
+download = 'pass_to_file.zip'
+file_name = './file.zip'
+if (not path.exists(file_name)):
+    with urllib.request.urlopen(download) as response, open(file_name, 'wb') as out_file:
+        data = response.read()
+        out_file.write(data)
+with zipfile.ZipFile(file_name, 'r') as zip_ref:
+    zip_ref.extractall('file')
