@@ -22,6 +22,7 @@ workspace.size <- function() {
   ws <- sum(sapply(ls(envir=globalenv()), function(x)object.size(get(x))))
   class(ws) <- "object_size"
   ws*1e-9
+  # lobstr::obj_size(x)
 }
 
 workspace.size()
