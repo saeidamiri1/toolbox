@@ -17,3 +17,12 @@ Modes<-function(x) {
   ux[tab == min(tab)]
 }
 
+
+workspace.size <- function() {
+  ws <- sum(sapply(ls(envir=globalenv()), function(x)object.size(get(x))))
+  class(ws) <- "object_size"
+  ws*1e-9
+}
+
+workspace.size()
+                   
