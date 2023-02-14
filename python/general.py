@@ -53,5 +53,6 @@ with zipfile.ZipFile(file_name, 'r') as zip_ref:
     zip_ref.extractall('file')
     
 ##
+import gzip
 open_function = lambda f: gzip.open(f,"rt") if f[-3:] == ".gz" else open(f)
 
