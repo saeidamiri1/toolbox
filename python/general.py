@@ -51,3 +51,7 @@ if (not path.exists(file_name)):
         out_file.write(data)
 with zipfile.ZipFile(file_name, 'r') as zip_ref:
     zip_ref.extractall('file')
+    
+##
+open_function = lambda f: gzip.open(f,"rt") if f[-3:] == ".gz" else open(f)
+
