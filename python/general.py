@@ -107,3 +107,19 @@ def md5sum(file_path, blocksize=65536):
             result.update(chunk)
             chunk = f.read(blocksize)
     return result.hexdigest()
+##############################################################################
+#!/usr/bin/python
+import subprocess, sys, shlex
+
+def main(argv):
+  args = shlex.split(argv)
+  op = subprocess.Popen(args,stdout=subprocess.PIPE)
+  result, err =  op.communicate()
+  op.wait()
+  tw = op.returncode
+  # Use the result , error and return code here for extra processing
+
+
+
+if __name__ == "__main__":
+  main(sys.argv[1])
