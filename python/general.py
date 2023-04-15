@@ -123,3 +123,12 @@ def main(argv):
 
 if __name__ == "__main__":
   main(sys.argv[1])
+
+
+def run_sub_(cmd):
+    import subprocess
+    res = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE)
+    out = res.stdout.readlines()
+    return ([x.strip().decode("utf-8") for x in out])
+
+run_sub_('ls')
