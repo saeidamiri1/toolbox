@@ -1,11 +1,7 @@
-def uppload_via_github(url): 
-    import sys
-    import os 
-    import requests
-#     url = 'https://raw.githubusercontent.com/saeidamiri1/toolbox/blob/main/python/general.py'
-    r = requests.get(url)
-    file_name=os.path.basename(url).split('/')[-1]
-    with open(file_name, 'w') as f:
-        f.write(r.text)
-    exec(f"import {file_name.split('.')[-2]}")
+def file_parts(path0):
+    file_name=os.path.basename(path0)
+    file_path=os.path.dirname(path0)
+    file_ext=file_name.split('.')[-1]
+    file_base=file_name.split('.')[-2]
+    return(file_path,file_name,file_base,file_ext)
     
