@@ -7,5 +7,5 @@ def uppload_via_github(url):
     file_name=os.path.basename(url).split('/')[-1]
     with open(file_name, 'w') as f:
         f.write(r.text)
-    import file_name.split('.')[-2]
+    exec(f"import {file_name.split('.')[-2]}")
     
