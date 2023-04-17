@@ -11,5 +11,8 @@ def uppload_via_github(url):
 url='https://raw.githubusercontent.com/saeidamiri1/toolbox/main/python/utils.py'
 uppload_via_github(url)
 
+# fi=unction in utils: 
+# file_parts(path0), reload_frompath(module0,path0)
+   
  
 
