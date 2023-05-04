@@ -1,1 +1,13 @@
+If the array intereger : 
+if ! [[ ${THREADS_ARRAY[$STEP]} =~ ^[0-9]+$  ]]; then
 
+If the array does not exit: 
+if [ -z "${WALLTIME_ARRAY[$STEP]}" ]; then
+
+if the directory exit: 
+  if [  -d $OUTPUT_DIR/step6/objs6 ]; then 
+    rm -rf  $OUTPUT_DIR/step6/objs6 ; mkdir -p $OUTPUT_DIR/step6/objs6 &
+  else
+    mkdir -p $OUTPUT_DIR/step6/objs6 &
+  fi 
+  
