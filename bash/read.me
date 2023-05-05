@@ -11,3 +11,7 @@ if the directory exit:
     mkdir -p $OUTPUT_DIR/step6/objs6 &
   fi 
   
+export PATH="<PATH_TO_PYTHON>:$PATH"
+echo export PATH="<PATH_TO_PYTHON>:$PATH" >> ~/.profile
+source ~/.profile
+echo $PATH | tr ":" "\n"
