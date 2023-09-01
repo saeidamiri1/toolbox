@@ -156,3 +156,30 @@ if __name__ == "__main__":
         find_duplicates(npath)
         sys.exit(0)
     print("Pass in path to find duplicates")
+
+################
+tz_rgx = re.compile(r'(?:(\.)|(\.\d*?[1-9]\d*?))0+(?=\b|[^0-9])')
+
+def num_trim_zero_str(val):
+    """Trim trailing zeros from number as STRING
+    
+    Return string
+    """
+    return tz_rgx.sub(r'\2',val)
+
+
+def de_run_len_encode(nlis_str, sep=','):
+    """Expand run-lengh-encoded string back into list of numbers
+    
+    Return list of float
+    """
+    num_lis = []
+    for w in nlis_str.split(sep):
+        parts = w.split('x')
+        run = 1
+        if len(parts) > 1:
+            run = int(num_rgx.search(parts[1]).group(0))            
+        num = float(num_rgx.search(parts[0]).group(0))
+        num_lis.extend([num] * run)
+    return num_lis
+    
