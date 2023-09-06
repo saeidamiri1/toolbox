@@ -15,4 +15,26 @@ def reload_frompath(module0,path0):
 # path0='/home/samamiri/runs/samamiri/general_files/VeParser/VeParser/'
 # module0='source'
 # reload_frompath(module0,path0)
+#################
+def is_newer_b(a, bfiles):
+    """
+    check that all b files have been modified more recently than a
+    """
+    try:
+        basestring
+    except NameError:
+        basestring = str
+    if isinstance(bfiles, basestring):
+        bfiles = [bfiles]
+    if not os.path.exists(a): return False
+    if not all(os.path.exists(b) for b in bfiles): return False
+    atime = os.stat(a).st_mtime # modification time
+    for b in bfiles:
+        if atime > os.stat(b).st_mtime:
+            # print('yes')
+            return False
+    return True
+# a='~/file1.py'
+# bfiles='~/note.sh'
+# is_newer_b(a, bfiles)
 
